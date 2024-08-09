@@ -21,8 +21,8 @@ class RandomDiffusion:
     self._output_dir = output_dir
     self._repeat_cnt = 3    #同じ呪文を繰り返す回数
     self._try_cnt = 10      #異なる呪文を試行する回数
-    self._prompt_candidate_list = []  #プロンプトの単語リスト
-    self._negative_prompt = 'deformed, blurry, bad anatomy, bad pupil, disfigured, poorly drawn face, mutation, mutated, extra limb, ugly, poorly drawn hands, bad hands, fused fingers, messy drawing, broken legs censor, low quality, mutated hands and fingers, long body, mutation, poorly drawn, bad eyes, ui, error, missing fingers, fused fingers, one hand with more than 5 fingers, one hand with less than 5 fingers, one hand with more than 5 digit, one hand with less than 5 digit, extra digit, fewer digits, fused digit, missing digit, bad digit, liquid digit, long body, uncoordinated body, unnatural body, lowres, jpeg artifacts, 3d, cg, text, japanese kanji'
+    self._prompt_groups = []  #プロンプト候補グループのリスト
+    self._negative_prompt = 'deformed, blurry, bad anatomy, bad pupil, disfigured, poorly drawn face, mutation, mutated, extra limb, ugly, poorly drawn hands, bad hands, fused fingers, messy drawing, broken legs censor, low quality, mutated hands and fingers, long body, mutation, poorly drawn, bad eyes, ui, error, missing fingers, fused fingers, one hand with more than 5 fingers, one hand with less than 5 fingers, one hand with more than 5 digit, one hand with less than 5 digit, extra digit, fewer digits, fused digit, missing digit, bad digit, liquid digit, long body, uncoordinated body, unnatural body, lowres, jpeg artifacts, 3d, cg, text, japanese kanji'.split(',')
     
   @property
   def repeat_cnt(self):
@@ -45,14 +45,14 @@ class RandomDiffusion:
     return self._negative_prompt
 
   @negative_prompt.setter
-  def negative_prompt(self, value):
-    self._negative_prompt = value
+  def negative_prompt(self, values):
+    self._negative_prompt = values
     
-  def addPromptCandidate(self, candidate, max_choice=1, appearance_rate=1):
+  def addPromptGroup(self, words, max_choice=1, appearance_rate=1):
     """
     プロンプトの候補を追加する
     """
-    self._prompt_candidate_list.append({'candidate':candidate, 
+    self._prompt_groups.append({'words':words, 
               'max_choice':max_choice, 'appearance_rate':appearance_rate})
 
   def exec(self, model = None):
@@ -66,10 +66,10 @@ class RandomDiffusion:
       
   def exec_sub(self):
     prompt = ''
-    for prompt_candidate in self._prompt_candidate_list:
-      if random.random() <= prompt_candidate['appearance_rate']: 
-        words = random.sample(prompt_candidate['candidate'], 
-                  random.randint(1, prompt_candidate['max_choice']))
+    for prompt_group in self._prompt_groups:
+      if random.random() <= prompt_group['appearance_rate']: 
+        words = random.sample(prompt_group['words'], 
+                  random.randint(1, prompt_group['max_choice']))
         if prompt:
           prompt = prompt + ','
         prompt = prompt + ','.join(words)
@@ -83,7 +83,7 @@ class RandomDiffusion:
       else:
         pipe = DiffusionPipeline.from_pretrained(self._model)
       pipe = pipe.to("cuda")
-      image = pipe(prompt, negative_prompt=self._negative_prompt, num_inference_steps=20).images[0]
+      image = pipe(prompt, negative_prompt=','.join(self._negative_prompt), num_inference_steps=20).images[0]
       file_name = self.make_file_name()
       print(f'{file_name} <= "{prompt}"')
       with open(f"{self._output_dir}/promt.log", "a") as f:  # "a" モードで追記
